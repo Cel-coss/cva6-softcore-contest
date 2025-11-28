@@ -25,130 +25,25 @@ package cvxif_instr_pkg;
     ADD_RS3_R = 4'b1111
   } opcode_t;
 
+package cvxif_instr_pkg;
 
+  // Définir les opcodes possibles pour le coprocesseur
+  typedef enum logic [3:0] {
+    ILLEGAL = 4'b0000,  // Instruction illégale (au cas où)
+    MUL_CPX = 4'b0011   // Instruction MUL_CPX pour multiplication complexe
+  } opcode_t;
+
+  // Structure pour la réponse à une instruction issue
   typedef struct packed {
-    logic accept;
-    logic writeback;  // TODO depends on dualwrite
-    logic [2:0] register_read;  // TODO Nr read ports
+    logic accept;         // Indique si l'instruction a été acceptée
+    logic writeback;      // Si l'instruction doit effectuer un writeback
+    logic [2:0] register_read;  // Nombre de ports de lecture
   } issue_resp_t;
 
+  // Structure pour les instructions envoyées au coprocesseur
   typedef struct packed {
-    logic        accept;
-    logic [31:0] instr;
-  } compressed_resp_t;
-
-  typedef struct packed {
-    logic [31:0] instr;
-    logic [31:0] mask;
-    issue_resp_t resp;
-    opcode_t     opcode;
-  } copro_issue_resp_t;
-
-
-  typedef struct packed {
-    logic [15:0]      instr;
-    logic [15:0]      mask;
-    compressed_resp_t resp;
-  } copro_compressed_resp_t;
-
-  // 4 Possible RISCV instructions for Coprocessor
-  parameter int unsigned NbInstr = 10;
-  parameter copro_issue_resp_t CoproInstr[NbInstr] = '{
-      '{
-          // Custom Nop
-          instr:
-          32'b00000_00_00000_00000_0_00_00000_1111011,  // custom3 opcode
-          mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b0, register_read : {1'b0, 1'b0, 1'b0}},
-          opcode : NOP
-      },
-      '{
-          // Custom Add : cus_add rd, rs1, rs2
-          instr:
-          32'b00000_00_00000_00000_0_01_00000_1111011,  // custom3 opcode
-          mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b0, 1'b1, 1'b1}},
-          opcode : ADD
-      },
-      '{
-          // Custom Add rs1 : cus_add rd, rs1, rs1
-          instr:
-          32'b00000_01_00000_00000_0_01_00000_1111011,  // custom3 opcode
-          mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b0, 1'b0, 1'b1}},
-          opcode : DOUBLE_RS1
-      },
-      '{
-          // Custom Add rs2 : cus_add rd, rs2, rs2
-          instr:
-          32'b00000_10_00000_00000_0_01_00000_1111011,  // custom3 opcode
-          mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b0, 1'b1, 1'b0}},
-          opcode : DOUBLE_RS2
-      },
-      '{
-          // Custom Add Multi rs1 : cus_add rd, rs1, rs1
-          instr:
-          32'b00000_11_00000_00000_0_01_00000_1111011,  // custom3 opcode
-          mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b0, 1'b1, 1'b1}},
-          opcode : ADD_MULTI
-      },
-      '{
-          // Custom Add Multi rs1 : cus_add rd, rs1, rs1
-          instr:
-          32'b00001_00_00000_00000_0_01_00000_1111011,  // custom3 opcode
-          mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b1, 1'b1, 1'b1}},
-          opcode : ADD_RS3_R
-      },
-      '{
-          // Custom Add Multi rs1 : cus_add rd, rs1, rs1
-          instr:
-          32'b00000_00_00000_00000_0_00_00000_1000011,  // MADD opcode
-          mask: 32'b00000_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b1, 1'b1, 1'b1}},
-          opcode : MADD_RS3_R4
-      },
-      '{
-          // Custom Add Multi rs1 : cus_add rd, rs1, rs1
-          instr:
-          32'b00000_00_00000_00000_0_00_00000_1000111,  // MSUB opcode
-          mask: 32'b00000_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b1, 1'b1, 1'b1}},
-          opcode : MSUB_RS3_R4
-      },
-      '{
-          // Custom Add Multi rs1 : cus_add rd, rs1, rs1
-          instr:
-          32'b00000_00_00000_00000_0_00_00000_1001011,  // NMSUB opcode
-          mask: 32'b00000_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b1, 1'b1, 1'b1}},
-          opcode : NMSUB_RS3_R4
-      },
-      '{
-          // Custom Add Multi rs1 : cus_add rd, rs1, rs1
-          instr:
-          32'b00000_00_00000_00000_0_00_00000_1001111,  // NMADD opcode
-          mask: 32'b00000_11_00000_00000_1_11_00000_1111111,
-          resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b1, 1'b1, 1'b1}},
-          opcode : NMADD_RS3_R4
-      }
-  };
-
-  parameter int unsigned NbCompInstr = 2;
-  parameter copro_compressed_resp_t CoproCompInstr[NbCompInstr] = '{
-      // C_NOP
-      '{
-          instr : 16'b111_0_00000_00000_00,
-          mask : 16'b111_1_00000_00000_11,
-          resp : '{accept : 1'b1, instr : 32'b00000_00_00000_00000_0_00_00000_1111011}
-      },
-      '{
-          instr : 16'b111_1_00000_00000_00,
-          mask : 16'b111_1_00000_00000_11,
-          resp : '{accept : 1'b1, instr : 32'b00000_00_00000_00000_0_01_01010_1111011}
-      }
-  };
+    logic accept;         // Indique si l'instruction a été acceptée
+    logic [31:0] instr;   // Instruction 32 bits (MUL_CPX, etc.)
+  } comp;
 
 endpackage
