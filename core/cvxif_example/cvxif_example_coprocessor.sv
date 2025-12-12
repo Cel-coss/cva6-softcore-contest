@@ -11,7 +11,7 @@ module cvxif_example_coprocessor
   import cvxif_instr_pkg::*;
 #(
     // CVXIF Types
-    parameter  int unsigned NrRgprPorts         = 2,
+    parameter  int unsigned NrRgprPorts         = 3,
     parameter  int unsigned XLEN                = 32,
     parameter  type         readregflags_t      = logic,
     parameter  type         writeregflags_t     = logic,
