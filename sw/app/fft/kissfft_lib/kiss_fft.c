@@ -1,16 +1,23 @@
 /*
- *  Copyright (c) 2003-2010, Mark Borgerding. All rights reserved.
- *  This file is part of KISS FFT - https://github.com/mborgerding/kissfft
+ * Copyright (c) 2003-2010, Mark Borgerding. All rights reserved.
+ * This file is part of KISS FFT - https://github.com/mborgerding/kissfft
  *
- *  SPDX-License-Identifier: BSD-3-Clause
- *  See COPYING file for more information.
+ * SPDX-License-Identifier: BSD-3-Clause
+ * See COPYING file for more information.
  */
+
+// --- DÉBUT DES MODIFICATIONS : Ajout de l'en-tête du Coprocesseur ---
+#include "copro_fft.h"
+// --- FIN DES MODIFICATIONS ---
 
 #include "_kiss_fft_guts.h"
 /* The guts header contains all the multiplication and addition macros that are defined for
- fixed or floating point complex numbers.  It also delares the kf_ internal functions.
+ * fixed or floating point complex numbers.  It also delares the kf_ internal functions.
  */
 
+// ***************************************************************
+// FONCTION MODIFIÉE : kf_bfly2 (Radix-2 Butterfly)
+// ***************************************************************
 static void kf_bfly2(
         kiss_fft_cpx * Fout,
         const size_t fstride,
@@ -20,19 +27,52 @@ static void kf_bfly2(
 {
     kiss_fft_cpx * Fout2;
     kiss_fft_cpx * tw1 = st->twiddles;
-    kiss_fft_cpx t;
+    // La variable 't' n'est plus nécessaire car le calcul est fait en hardware
+    // kiss_fft_cpx t; 
     Fout2 = Fout + m;
+    
     do{
-        C_FIXDIV(*Fout,2); C_FIXDIV(*Fout2,2);
+        // 1. SCALING LOGICIEL (si non géré par le coprocesseur)
+        // Note: C_FIXDIV(*Fout, 2) est équivalent à *Fout = *Fout / 2
+        // C_FIXDIV(*Fout,2); C_FIXDIV(*Fout2,2);
+        Fout->r >>= 1; Fout->i >>= 1;
+        Fout2->r >>= 1; Fout2->i >>= 1;
 
-        C_MUL (t,  *Fout2 , *tw1);
+        // 2. PRÉPARATION DES DONNÉES ET ACCÈS AU COPROCESSEUR
+        // On copie les entrées localement pour éviter les problèmes d'écrasement Fout / Fout2
+        kiss_fft_cpx in_x0 = *Fout;
+        kiss_fft_cpx in_x1 = *Fout2;
+        kiss_fft_cpx in_wk = *tw1;
+        
+        // --- REMPLACEMENT DU CALCUL LOGICIEL PAR LE COPROCESSEUR ---
+        
+        // Ancien code logiciel:
+        // C_MUL (t,  *Fout2 , *tw1); // t = X1 * Wk
+        // C_SUB( *Fout2 ,  *Fout , t ); // Y1 = X0 - t
+        // C_ADDTO( *Fout ,  t ); // Y0 = X0 + t
+        
+        // Nouveau code hardware (qui effectue les trois opérations ci-dessus):
+        
+        // Calcul Hardware de Y0 = X0 + X1*Wk -> écrit dans Fout
+        // Fout = X0 + X1 * Wk
+        FFT_BUTTERFLY_Y0(Fout, in_x0, in_x1, in_wk);
+        
+        // Calcul Hardware de Y1 = X0 - X1*Wk -> écrit dans Fout2
+        // Fout2 = X0 - X1 * Wk
+        FFT_BUTTERFLY_Y1(Fout2, in_x0, in_x1, in_wk);
+        
+        // -------------------------------------------------------------
+        
         tw1 += fstride;
-        C_SUB( *Fout2 ,  *Fout , t );
-        C_ADDTO( *Fout ,  t );
         ++Fout2;
         ++Fout;
     }while (--m);
 }
+
+// ***************************************************************
+// FIN DE LA MODIFICATION
+// ***************************************************************
+
 
 static void kf_bfly4(
         kiss_fft_cpx * Fout,
@@ -83,11 +123,11 @@ static void kf_bfly4(
 }
 
 static void kf_bfly3(
-         kiss_fft_cpx * Fout,
-         const size_t fstride,
-         const kiss_fft_cfg st,
-         size_t m
-         )
+          kiss_fft_cpx * Fout,
+          const size_t fstride,
+          const kiss_fft_cfg st,
+          size_t m
+          )
 {
      size_t k=m;
      const size_t m2 = 2*m;
@@ -99,30 +139,30 @@ static void kf_bfly3(
      tw1=tw2=st->twiddles;
 
      do{
-         C_FIXDIV(*Fout,3); C_FIXDIV(Fout[m],3); C_FIXDIV(Fout[m2],3);
+          C_FIXDIV(*Fout,3); C_FIXDIV(Fout[m],3); C_FIXDIV(Fout[m2],3);
 
-         C_MUL(scratch[1],Fout[m] , *tw1);
-         C_MUL(scratch[2],Fout[m2] , *tw2);
+          C_MUL(scratch[1],Fout[m] , *tw1);
+          C_MUL(scratch[2],Fout[m2] , *tw2);
 
-         C_ADD(scratch[3],scratch[1],scratch[2]);
-         C_SUB(scratch[0],scratch[1],scratch[2]);
-         tw1 += fstride;
-         tw2 += fstride*2;
+          C_ADD(scratch[3],scratch[1],scratch[2]);
+          C_SUB(scratch[0],scratch[1],scratch[2]);
+          tw1 += fstride;
+          tw2 += fstride*2;
 
-         Fout[m].r = Fout->r - HALF_OF(scratch[3].r);
-         Fout[m].i = Fout->i - HALF_OF(scratch[3].i);
+          Fout[m].r = Fout->r - HALF_OF(scratch[3].r);
+          Fout[m].i = Fout->i - HALF_OF(scratch[3].i);
 
-         C_MULBYSCALAR( scratch[0] , epi3.i );
+          C_MULBYSCALAR( scratch[0] , epi3.i );
 
-         C_ADDTO(*Fout,scratch[3]);
+          C_ADDTO(*Fout,scratch[3]);
 
-         Fout[m2].r = Fout[m].r + scratch[0].i;
-         Fout[m2].i = Fout[m].i - scratch[0].r;
+          Fout[m2].r = Fout[m].r + scratch[0].i;
+          Fout[m2].i = Fout[m].i - scratch[0].r;
 
-         Fout[m].r -= scratch[0].i;
-         Fout[m].i += scratch[0].r;
+          Fout[m].r -= scratch[0].i;
+          Fout[m].i += scratch[0].r;
 
-         ++Fout;
+          ++Fout;
      }while(--k);
 }
 
@@ -254,7 +294,7 @@ void kf_work(
         int k;
 
         // execute the p different work units in different threads
-#       pragma omp parallel for
+#      pragma omp parallel for
         for (k=0;k<p;++k)
             kf_work( Fout +k*m, f+ fstride*in_stride*k,fstride*p,in_stride,factors,st);
         // all threads have joined by this point
@@ -298,10 +338,10 @@ void kf_work(
     }
 }
 
-/*  facbuf is populated by p1,m1,p2,m2, ...
+/* facbuf is populated by p1,m1,p2,m2, ...
     where
     p[i] * m[i] = m[i-1]
-    m0 = n                  */
+    m0 = n          */
 static
 void kf_factor(int n,int * facbuf)
 {
@@ -318,7 +358,7 @@ void kf_factor(int n,int * facbuf)
                 default: p += 2; break;
             }
             if (p > floor_sqrt)
-                p = n;          /* no more factors, skip to end */
+                p = n;           /* no more factors, skip to end */
         }
         n /= p;
         *facbuf++ = p;
@@ -356,10 +396,10 @@ kiss_fft_cfg kiss_fft_alloc(int nfft,int inverse_fft,void * mem,size_t * lenmem 
         st->nfft=nfft;
         st->inverse = inverse_fft;
 
-	// THE C_EXP OPERATIONS ARE PRECALCULATED
+    // THE C_EXP OPERATIONS ARE PRECALCULATED
 
-	st->twiddles = (kiss_fft_cpx *)&g_twiddles;
-	st->factors = (int *)&g_factors;
+    st->twiddles = (kiss_fft_cpx *)&g_twiddles;
+    st->factors = (int *)&g_factors;
 
         // for (i=0;i<nfft;++i) {
         //     const double pi=3.141592653589793238462643383279502884197169399375105820974944;
