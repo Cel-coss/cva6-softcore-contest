@@ -69,8 +69,7 @@ int main(void)
 		return 1;
 	}
 
-	printf("SUCCESS : fft result values correct\n");
-
+	printf("SUCCESS : fft result values correctA\n");
 	kiss_fft_free(cfg);
 	return 0;
 }

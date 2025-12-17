@@ -13,7 +13,7 @@
 #                 Kevin Eyssartier - EyssartK on github.com
 #
 # Additional contributions by:
-#			Julien Mallet -  J-Mallet on github.com
+#           Julien Mallet -  J-Mallet on github.com
 #
 # script Name:    Software application makefile
 # Project Name:   CVA6 softcore
@@ -23,10 +23,10 @@
 #
 # ===========================================================================
 # Revisions  :
-# Date        Version  Author		Description
-# 2020-10-06  0.1      S.Jacq		Created
-# 2020-10-06  0.1      k.Eyssartier	Created
-# 2025-10-06  0.2      J.Mallet 	Updated
+# Date        Version  Author       Description
+# 2020-10-06  0.1      S.Jacq       Created
+# 2020-10-06  0.1      k.Eyssartier Created
+# 2025-10-06  0.2      J.Mallet     Updated
 # ===========================================================================
 
 XLEN ?= 32
@@ -43,11 +43,11 @@ bsp_dir = ../bsp
 #--------------------------------------------------------------------
 
 bmarks = \
-	coremark \
-	helloworld \
-	helloworld_printf \
-	mnist \
-	fft
+    coremark \
+    helloworld \
+    helloworld_printf \
+    mnist \
+    fft
 
 #--------------------------------------------------------------------
 # Build rules
@@ -71,48 +71,50 @@ OBJ_BSP= $(OBJ_BSP_S) $(OBJ_BSP_C)
 
 OBJ_APP=$(wildcard $(src_dir)/*.o) 
 
+# MODIFICATION : Inclusion du dossier fft pour trouver copro_fft.h
 INCS += -I$(src_dir)/../bsp/config \
-	-I$(src_dir)/../bsp/drivers/uart \
-	-I$(src_dir)/../bsp/hal \
-	-I$(src_dir)/coremark/simple \
-	-I$(src_dir)/common \
-	$(addprefix -I$(src_dir)/, $(bmarks))
+    -I$(src_dir)/../bsp/drivers/uart \
+    -I$(src_dir)/../bsp/hal \
+    -I$(src_dir)/coremark/simple \
+    -I$(src_dir)/common \
+    -I$(src_dir)/fft \
+    $(addprefix -I$(src_dir)/, $(bmarks))
 
 FLAGS_STR:="$(RISCV_CFLAGS)  $(RISCV_LDFLAGS) "
 
 
-CFLAGS  ?=	-march=rv32im_zicsr \
-		-mabi=ilp32 \
-		-DPREALLOCATE=1 \
-		-fvisibility=hidden \
-		-DSTDIO_THRU_UART \
-		-O3 \
-		-mcmodel=medany \
-		-fno-tree-loop-distribute-patterns\
-		-funroll-all-loops \
-		-falign-jumps=4 \
-		-falign-functions=16 \
-		-static \
-		-Wall \
-		-pedantic 
+CFLAGS  ?=  -march=rv32im_zicsr \
+        -mabi=ilp32 \
+        -DPREALLOCATE=1 \
+        -fvisibility=hidden \
+        -DSTDIO_THRU_UART \
+        -O3 \
+        -mcmodel=medany \
+        -fno-tree-loop-distribute-patterns\
+        -funroll-all-loops \
+        -falign-jumps=4 \
+        -falign-functions=16 \
+        -static \
+        -Wall \
+        -pedantic 
 
 RISCV_CFLAGS :=-DPERFORMANCE_RUN=1 \
-		-DITERATIONS=3 \
-		-DFLAGS_STR=\"$(FLAGS_STR)\" \
-		-march=rv32im_zicsr \
-		-mabi=ilp32 \
-		-DPREALLOCATE=1 \
-		-fvisibility=hidden \
-		-DSTDIO_THRU_UART \
-		-O3 \
-		-mcmodel=medany \
-		-fno-tree-loop-distribute-patterns\
-		-funroll-all-loops \
-		-falign-jumps=4 \
-		-falign-functions=16 \
-		-static \
-		-Wall \
-		-pedantic 
+        -DITERATIONS=3 \
+        -DFLAGS_STR=\"$(FLAGS_STR)\" \
+        -march=rv32im_zicsr \
+        -mabi=ilp32 \
+        -DPREALLOCATE=1 \
+        -fvisibility=hidden \
+        -DSTDIO_THRU_UART \
+        -O3 \
+        -mcmodel=medany \
+        -fno-tree-loop-distribute-patterns\
+        -funroll-all-loops \
+        -falign-jumps=4 \
+        -falign-functions=16 \
+        -static \
+        -Wall \
+        -pedantic 
 
 
 RISCV_LDFLAGS=-L./ -lcva6 -static -nostartfiles -T $(src_dir)/../bsp/config/link.ld
@@ -167,8 +169,9 @@ libcva6.a: $(OBJ_BSP)
 %.coe: %.mem
 	$(utils_dir)/mem2coe.py $(src_dir)/$<
 
+# MODIFICATION : Ajout de -I$(src_dir)/fft pour que kiss_fft.c trouve copro_fft.h
 fft/kissfft_lib/libkissfft-int16_t.a:
-	make -C fft/kissfft_lib CC=$(RISCV_GCC) CFLAGS='$(RISCV_CFLAGS)' $(INCS) KISSFFT_DATATYPE=int16_t KISSFFT_STATIC=1 KISSFFT_TOOLS=0
+	make -C fft/kissfft_lib CC=$(RISCV_GCC) CFLAGS='$(RISCV_CFLAGS) -DFIXED_POINT -I$(src_dir)/fft' $(INCS) KISSFFT_DATATYPE=int16_t KISSFFT_STATIC=1 KISSFFT_TOOLS=0
 
 
 all: $(bmarks)

@@ -18,6 +18,7 @@
 // ***************************************************************
 // FONCTION MODIFIÉE : kf_bfly2 (Radix-2 Butterfly)
 // ***************************************************************
+__attribute__((noinline))
 static void kf_bfly2(
         kiss_fft_cpx * Fout,
         const size_t fstride,
@@ -73,7 +74,7 @@ static void kf_bfly2(
 // FIN DE LA MODIFICATION
 // ***************************************************************
 
-
+__attribute__((noinline))
 static void kf_bfly4(
         kiss_fft_cpx * Fout,
         const size_t fstride,

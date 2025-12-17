@@ -110,22 +110,24 @@ package cvxif_instr_pkg;
             opcode : ADD_RS3_R
         },
         
-        // --- NOUVEAU : FFT BUTTERFLY Y0 (X0 + X1 * Wk) (6) ---
+        // --- CORRECTION : FFT BUTTERFLY Y0 (X0 + X1 * Wk) (6) ---
         '{
-            // Utilise funct7=0000101 et funct3=001. Lit rs3, rs2, rs1.
+            // Format R4-type : rs3[31:27], funct2[26:25]=00, funct3[14:12]=000
+            // instr : 32'b xxxxx _ 00 _ xxxxx _ xxxxx _ 000 _ xxxxx _ 1111011
             instr:
-            32'b00001_01_00000_00000_0_01_00000_1111011,  // custom3 opcode
-            mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
+            32'b00000_00_00000_00000_000_00000_1111011,  
+            // Le masque doit ignorer les champs de registres (set à 0) mais vérifier funct2 et funct3
+            mask: 32'b00000_11_00000_00000_111_00000_1111111,
             resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b1, 1'b1, 1'b1}}, 
             opcode : FFT_BUTTERFLY_Y0
         },
         
-        // --- NOUVEAU : FFT BUTTERFLY Y1 (X0 - X1 * Wk) (7) ---
+        // --- CORRECTION : FFT BUTTERFLY Y1 (X0 - X1 * Wk) (7) ---
         '{
-            // Utilise funct7=0000110 et funct3=001. Lit rs3, rs2, rs1.
+            // Format R4-type : funct2[26:25]=01
             instr:
-            32'b00001_10_00000_00000_0_01_00000_1111011,  // custom3 opcode
-            mask: 32'b11111_11_00000_00000_1_11_00000_1111111,
+            32'b00000_01_00000_00000_000_00000_1111011,  
+            mask: 32'b00000_11_00000_00000_111_00000_1111111,
             resp : '{accept : 1'b1, writeback : 1'b1, register_read : {1'b1, 1'b1, 1'b1}}, 
             opcode : FFT_BUTTERFLY_Y1
         },
